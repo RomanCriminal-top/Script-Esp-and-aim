@@ -14,17 +14,17 @@ local Crosshair_Enabled = false
 local Aimbot_FOV = 150 
 local Crosshair_Size = 10 
 
--- Новые настройки тумблеров VISUAL (По умолчанию всё включено, если включен сам ESP/Aim)
+-- Настройки тумблеров VISUAL 
 local Vis_Boxes = true
 local Vis_Lines = true
 local Vis_FOV = true
 local Vis_Names = true
 local Vis_Dist = true
 
--- Смена Цветов (Индексы: 1 = Белый (Дефолт), 2 = Зеленый, 3 = Фиолетовый, 4 = Радуга)
+-- Смена Цветов (1 = Белый, 2 = Зеленый, 3 = Фиолетовый, 4 = Радуга)
 local CurrentColorIndex = 1
 local ColorModes = {"DEFAULT", "GREEN", "PURPLE", "RAINBOW"}
-local CurrentStaticColor = Color3.fromRGB(255, 255, 255) -- Дефолт теперь белый
+local CurrentStaticColor = Color3.fromRGB(255, 255, 255) 
 
 -- Хранилище для графики ESP
 local ESP_Cache = {}
@@ -111,7 +111,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- Высокопроизводительный цикл обновлений
+-- Высокопроизвидительный цикл обновлений
 RunService.Heartbeat:Connect(function()
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
@@ -121,10 +121,9 @@ RunService.Heartbeat:Connect(function()
         DynamicColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
     end
 
-    -- Ссылка на глобальную переменную для использования во 2 части (эффект текста кнопки)
     _G.CurrentRainbowColor = DynamicColor
 
-    -- Визуализация FOV круга (с проверкой Vis_FOV)
+    -- Визуализация FOV круга
     if Aimbot_Enabled and Vis_FOV then
         FOVCircle.Radius = Aimbot_FOV
         FOVCircle.Position = screenCenter
@@ -153,7 +152,7 @@ RunService.Heartbeat:Connect(function()
         Crosshair_Vertical.Visible = false
     end
 
-    -- Обновление ESP (Ники, Дистанция, Боксы, Линии)
+    -- Обновление ESP
     for player, objs in pairs(ESP_Cache) do
         if ESP_Enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character.Humanoid.Health > 0 then
             local hrp = player.Character.HumanoidRootPart
@@ -225,7 +224,7 @@ RunService.Heartbeat:Connect(function()
         end
     end
 end)
--- ЧАСТЬ 2: ИНТЕРФЕЙС GUI И НАСТРОЙКИ ОТОБРАЖЕНИЯ
+-- ЧАСТЬ 2: ИНТЕРФЕЙС GUI С ВКЛАДКАМИ
 if CoreGui:FindFirstChild("DeltaESP_Gui") then
     CoreGui.DeltaESP_Gui:Destroy()
 end
@@ -237,9 +236,8 @@ ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
--- Высота увеличена до 530, чтобы вместить новое отделение VISUAL под ползунками
-MainFrame.Size = UDim2.new(0, 220, 0, 530) 
-MainFrame.Position = UDim2.new(0.5, -110, 0.4, -265)
+MainFrame.Size = UDim2.new(0, 220, 0, 315) -- Компактный размер благодаря вкладкам
+MainFrame.Position = UDim2.new(0.5, -110, 0.4, -157)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -263,16 +261,82 @@ local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = Title
 
---- РЯД 1: ESP И INF JUMP ---
+--- КНОПКИ ДЛЯ ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
+local MainTabButton = Instance.new("TextButton")
+MainTabButton.Size = UDim2.new(0, 85, 0, 25)
+MainTabButton.Position = UDim2.new(0, 20, 0, 42)
+MainTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+MainTabButton.Text = "MAIN"
+MainTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MainTabButton.Font = Enum.Font.GothamBold
+MainTabButton.TextSize = 11
+MainTabButton.Parent = MainFrame
+
+local MTabCorner = Instance.new("UICorner")
+MTabCorner.CornerRadius = UDim.new(0, 6)
+MTabCorner.Parent = MainTabButton
+
+local VisualTabButton = Instance.new("TextButton")
+VisualTabButton.Size = UDim2.new(0, 85, 0, 25)
+VisualTabButton.Position = UDim2.new(0, 115, 0, 42)
+VisualTabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+VisualTabButton.Text = "VISUAL"
+VisualTabButton.TextColor3 = Color3.fromRGB(150, 150, 150)
+VisualTabButton.Font = Enum.Font.GothamBold
+VisualTabButton.TextSize = 11
+VisualTabButton.Parent = MainFrame
+
+local VTabCorner = Instance.new("UICorner")
+VTabCorner.CornerRadius = UDim.new(0, 6)
+VTabCorner.Parent = VisualTabButton
+
+-- Контейнеры контента для вкладок
+local MainContentFrame = Instance.new("Frame")
+MainContentFrame.Size = UDim2.new(1, 0, 1, -75)
+MainContentFrame.Position = UDim2.new(0, 0, 0, 75)
+MainContentFrame.BackgroundTransparency = 1
+MainContentFrame.Parent = MainFrame
+
+local VisualContentFrame = Instance.new("Frame")
+VisualContentFrame.Size = UDim2.new(1, 0, 1, -75)
+VisualContentFrame.Position = UDim2.new(0, 0, 0, 75)
+VisualContentFrame.BackgroundTransparency = 1
+VisualContentFrame.Visible = false
+VisualContentFrame.Parent = MainFrame
+
+-- Логика вкладок
+MainTabButton.MouseButton1Click:Connect(function()
+    MainContentFrame.Visible = true
+    VisualContentFrame.Visible = false
+    MainTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    MainTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    VisualTabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    VisualTabButton.TextColor3 = Color3.fromRGB(150, 150, 150)
+end)
+
+VisualTabButton.MouseButton1Click:Connect(function()
+    MainContentFrame.Visible = false
+    VisualContentFrame.Visible = true
+    VisualTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    VisualTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MainTabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    MainTabButton.TextColor3 = Color3.fromRGB(150, 150, 150)
+end)
+
+
+--- ========================================== ---
+---              ВКЛАДКА 1: MAIN (ОСНОВА)      ---
+--- ========================================== ---
+
 local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 85, 0, 40)
-ToggleButton.Position = UDim2.new(0, 20, 0, 50)
+ToggleButton.Size = UDim2.new(0, 85, 0, 35)
+ToggleButton.Position = UDim2.new(0, 20, 0, 5)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 ToggleButton.Text = "ESP: OFF"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.TextSize = 13
-ToggleButton.Parent = MainFrame
+ToggleButton.TextSize = 12
+ToggleButton.Parent = MainContentFrame
 
 local ButtonCorner = Instance.new("UICorner")
 ButtonCorner.CornerRadius = UDim.new(0, 8)
@@ -285,14 +349,14 @@ ToggleButton.MouseButton1Click:Connect(function()
 end)
 
 local FlyButton = Instance.new("TextButton")
-FlyButton.Size = UDim2.new(0, 85, 0, 40)
-FlyButton.Position = UDim2.new(0, 115, 0, 50)
+FlyButton.Size = UDim2.new(0, 85, 0, 35)
+FlyButton.Position = UDim2.new(0, 115, 0, 5)
 FlyButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 FlyButton.Text = "INF JUMP: OFF"
 FlyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 FlyButton.Font = Enum.Font.GothamBold
-FlyButton.TextSize = 11
-FlyButton.Parent = MainFrame
+FlyButton.TextSize = 10
+FlyButton.Parent = MainContentFrame
 
 local FlyCorner = Instance.new("UICorner")
 FlyCorner.CornerRadius = UDim.new(0, 8)
@@ -304,16 +368,15 @@ FlyButton.MouseButton1Click:Connect(function()
     FlyButton.BackgroundColor3 = Fly_Enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
 end)
 
---- РЯД 2: AIMBOT И CROSSHAIR ---
 local AimButton = Instance.new("TextButton")
-AimButton.Size = UDim2.new(0, 85, 0, 40)
-AimButton.Position = UDim2.new(0, 20, 0, 100)
+AimButton.Size = UDim2.new(0, 85, 0, 35)
+AimButton.Position = UDim2.new(0, 20, 0, 48)
 AimButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 AimButton.Text = "AIM: OFF"
 AimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 AimButton.Font = Enum.Font.GothamBold
-AimButton.TextSize = 13
-AimButton.Parent = MainFrame
+AimButton.TextSize = 12
+AimButton.Parent = MainContentFrame
 
 local AimCorner = Instance.new("UICorner")
 AimCorner.CornerRadius = UDim.new(0, 8)
@@ -326,14 +389,14 @@ AimButton.MouseButton1Click:Connect(function()
 end)
 
 local CrosshairButton = Instance.new("TextButton")
-CrosshairButton.Size = UDim2.new(0, 85, 0, 40)
-CrosshairButton.Position = UDim2.new(0, 115, 0, 100)
+CrosshairButton.Size = UDim2.new(0, 85, 0, 35)
+CrosshairButton.Position = UDim2.new(0, 115, 0, 48)
 CrosshairButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 CrosshairButton.Text = "CROSS: OFF"
 CrosshairButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CrosshairButton.Font = Enum.Font.GothamBold
-CrosshairButton.TextSize = 12
-CrosshairButton.Parent = MainFrame
+CrosshairButton.TextSize = 11
+CrosshairButton.Parent = MainContentFrame
 
 local CrosshairCorner = Instance.new("UICorner")
 CrosshairCorner.CornerRadius = UDim.new(0, 8)
@@ -345,16 +408,15 @@ CrosshairButton.MouseButton1Click:Connect(function()
     CrosshairButton.BackgroundColor3 = Crosshair_Enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
 end)
 
---- КНОПКА ИЗМЕНЕНИЯ ЦВЕТА (COLOR) ---
 local ColorButton = Instance.new("TextButton")
-ColorButton.Size = UDim2.new(0, 180, 0, 35)
-ColorButton.Position = UDim2.new(0.5, -90, 0, 150)
+ColorButton.Size = UDim2.new(0, 180, 0, 32)
+ColorButton.Position = UDim2.new(0.5, -90, 0, 92)
 ColorButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 ColorButton.Text = "COLOR: DEFAULT"
-ColorButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- По дефолту белый
+ColorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ColorButton.Font = Enum.Font.GothamBold
-ColorButton.TextSize = 13
-ColorButton.Parent = MainFrame
+ColorButton.TextSize = 12
+ColorButton.Parent = MainContentFrame
 
 local ColorCorner = Instance.new("UICorner")
 ColorCorner.CornerRadius = UDim.new(0, 8)
@@ -379,30 +441,28 @@ ColorButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Радужное переливание текста кнопки, если включен режим RAINBOW
 game:GetService("RunService").Heartbeat:Connect(function()
     if ColorModes[CurrentColorIndex] == "RAINBOW" and _G.CurrentRainbowColor then
         ColorButton.TextColor3 = _G.CurrentRainbowColor
     end
 end)
 
---- ПОЛЗУНОК FOV ---
 local SliderLabel = Instance.new("TextLabel")
-SliderLabel.Size = UDim2.new(0, 180, 0, 20)
-SliderLabel.Position = UDim2.new(0.5, -90, 0, 200)
+SliderLabel.Size = UDim2.new(0, 180, 0, 15)
+SliderLabel.Position = UDim2.new(0.5, -90, 0, 135)
 SliderLabel.BackgroundTransparency = 1
 SliderLabel.Text = "FOV Радиус: " .. tostring(Aimbot_FOV)
 SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 SliderLabel.Font = Enum.Font.GothamBold
-SliderLabel.TextSize = 12
-SliderLabel.Parent = MainFrame
+SliderLabel.TextSize = 11
+SliderLabel.Parent = MainContentFrame
 
 local SliderFrame = Instance.new("Frame")
-SliderFrame.Size = UDim2.new(0, 180, 0, 8)
-SliderFrame.Position = UDim2.new(0.5, -90, 0, 225)
+SliderFrame.Size = UDim2.new(0, 180, 0, 6)
+SliderFrame.Position = UDim2.new(0.5, -90, 0, 155)
 SliderFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 SliderFrame.BorderSizePixel = 0
-SliderFrame.Parent = MainFrame
+SliderFrame.Parent = MainContentFrame
 
 local SliderCorner = Instance.new("UICorner")
 SliderCorner.CornerRadius = UDim.new(0, 4)
@@ -418,8 +478,8 @@ FillCorner.CornerRadius = UDim.new(0, 4)
 FillCorner.Parent = SliderFill
 
 local SliderButton = Instance.new("TextButton")
-SliderButton.Size = UDim2.new(0, 14, 0, 14)
-SliderButton.Position = UDim2.new(Aimbot_FOV / 500, -7, 0.5, -7)
+SliderButton.Size = UDim2.new(0, 12, 0, 12)
+SliderButton.Position = UDim2.new(Aimbot_FOV / 500, -6, 0.5, -6)
 SliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 SliderButton.Text = ""
 SliderButton.Parent = SliderFrame
@@ -428,23 +488,22 @@ local RoundCorner = Instance.new("UICorner")
 RoundCorner.CornerRadius = UDim.new(1, 0)
 RoundCorner.Parent = SliderButton
 
---- ПОЛЗУНОК ДЛЯ КРОССХЕИРА ---
 local CrosshairSliderLabel = Instance.new("TextLabel")
-CrosshairSliderLabel.Size = UDim2.new(0, 180, 0, 20)
-CrosshairSliderLabel.Position = UDim2.new(0.5, -90, 0, 245)
+CrosshairSliderLabel.Size = UDim2.new(0, 180, 0, 15)
+CrosshairSliderLabel.Position = UDim2.new(0.5, -90, 0, 175)
 CrosshairSliderLabel.BackgroundTransparency = 1
 CrosshairSliderLabel.Text = "Размер прицела: " .. tostring(Crosshair_Size)
 CrosshairSliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 CrosshairSliderLabel.Font = Enum.Font.GothamBold
-CrosshairSliderLabel.TextSize = 12
-CrosshairSliderLabel.Parent = MainFrame
+CrosshairSliderLabel.TextSize = 11
+CrosshairSliderLabel.Parent = MainContentFrame
 
 local CrosshairSliderFrame = Instance.new("Frame")
-CrosshairSliderFrame.Size = UDim2.new(0, 180, 0, 8)
-CrosshairSliderFrame.Position = UDim2.new(0.5, -90, 0, 270)
+CrosshairSliderFrame.Size = UDim2.new(0, 180, 0, 6)
+CrosshairSliderFrame.Position = UDim2.new(0.5, -90, 0, 195)
 CrosshairSliderFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 CrosshairSliderFrame.BorderSizePixel = 0
-CrosshairSliderFrame.Parent = MainFrame
+CrosshairSliderFrame.Parent = MainContentFrame
 
 local CSliderCorner = Instance.new("UICorner")
 CSliderCorner.CornerRadius = UDim.new(0, 4)
@@ -460,8 +519,8 @@ CFillCorner.CornerRadius = UDim.new(0, 4)
 CFillCorner.Parent = CrosshairSliderFill
 
 local CrosshairSliderButton = Instance.new("TextButton")
-CrosshairSliderButton.Size = UDim2.new(0, 14, 0, 14)
-CrosshairSliderButton.Position = UDim2.new((Crosshair_Size - 3) / 47, -7, 0.5, -7)
+CrosshairSliderButton.Size = UDim2.new(0, 12, 0, 12)
+CrosshairSliderButton.Position = UDim2.new((Crosshair_Size - 3) / 47, -6, 0.5, -6)
 CrosshairSliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 CrosshairSliderButton.Text = ""
 CrosshairSliderButton.Parent = CrosshairSliderFrame
@@ -470,34 +529,24 @@ local CRoundCorner = Instance.new("UICorner")
 CRoundCorner.CornerRadius = UDim.new(1, 0)
 CRoundCorner.Parent = CrosshairSliderButton
 
+
 --- ========================================== ---
----             НОВОЕ ОТДЕЛЕНИЕ: VISUAL        ---
+---              ВКЛАДКА 2: VISUAL (ВИЗУАЛ)    ---
 --- ========================================== ---
 
-local VisualTitle = Instance.new("TextLabel")
-VisualTitle.Size = UDim2.new(0, 180, 0, 20)
-VisualTitle.Position = UDim2.new(0.5, -90, 0, 295)
-VisualTitle.BackgroundTransparency = 1
-VisualTitle.Text = "— VISUAL SETTINGS —"
-VisualTitle.TextColor3 = Color3.fromRGB(150, 150, 160)
-VisualTitle.Font = Enum.Font.GothamBold
-VisualTitle.TextSize = 11
-VisualTitle.Parent = MainFrame
-
--- Функция для быстрой генерации маленьких кнопок переключения визуала
-local function CreateVisualToggle(name, textOn, textOff, yPos, startState, callback)
+local function CreateVisualToggle(textOn, textOff, yPos, startState, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 180, 0, 25)
+    btn.Size = UDim2.new(0, 180, 0, 30)
     btn.Position = UDim2.new(0.5, -90, 0, yPos)
     btn.BackgroundColor3 = startState and Color3.fromRGB(55, 60, 75) or Color3.fromRGB(45, 45, 50)
     btn.Text = startState and textOn or textOff
     btn.TextColor3 = startState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(130, 130, 130)
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 11
-    btn.Parent = MainFrame
+    btn.Parent = VisualContentFrame
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 5)
+    corner.CornerRadius = UDim.new(0, 6)
     corner.Parent = btn
 
     local state = startState
@@ -510,16 +559,14 @@ local function CreateVisualToggle(name, textOn, textOff, yPos, startState, callb
     end)
 end
 
--- Создаем кнопки настройки отображения элементов
-CreateVisualToggle("ToggleBoxes", "BOXES: VISIBLE", "BOXES: HIDDEN", 320, true, function(v) Vis_Boxes = v end)
-CreateVisualToggle("ToggleLines", "LINES: VISIBLE", "LINES: HIDDEN", 350, true, function(v) Vis_Lines = v end)
-CreateVisualToggle("ToggleFOV", "FOV CIRCLE: VISIBLE", "FOV CIRCLE: HIDDEN", 380, true, function(v) Vis_FOV = v end)
-CreateVisualToggle("ToggleNames", "NAMES: VISIBLE", "NAMES: HIDDEN", 410, true, function(v) Vis_Names = v end)
-CreateVisualToggle("ToggleDist", "DISTANCE: VISIBLE", "DISTANCE: HIDDEN", 440, true, function(v) Vis_Dist = v end)
+CreateVisualToggle("BOXES: VISIBLE", "BOXES: HIDDEN", 5, true, function(v) Vis_Boxes = v end)
+CreateVisualToggle("LINES: VISIBLE", "LINES: HIDDEN", 42, true, function(v) Vis_Lines = v end)
+CreateVisualToggle("FOV CIRCLE: VISIBLE", "FOV CIRCLE: HIDDEN", 79, true, function(v) Vis_FOV = v end)
+CreateVisualToggle("NAMES: VISIBLE", "NAMES: HIDDEN", 116, true, function(v) Vis_Names = v end)
+CreateVisualToggle("DISTANCE: VISIBLE", "DISTANCE: HIDDEN", 153, true, function(v) Vis_Dist = v end)
 
---- ========================================== ---
 
--- Управление ползунками
+-- Управление ползунками (Логика движения)
 local draggingFOV = false
 local draggingCrosshair = false
 
@@ -530,7 +577,7 @@ local function updateFOVSlider(input)
     local percentage = (inputX - minX) / SliderFrame.AbsoluteSize.X
     Aimbot_FOV = math.floor(10 + (percentage * 490))
     SliderLabel.Text = "FOV Радиус: " .. tostring(Aimbot_FOV)
-    SliderButton.Position = UDim2.new(percentage, -7, 0.5, -7)
+    SliderButton.Position = UDim2.new(percentage, -6, 0.5, -6)
     SliderFill.Size = UDim2.new(percentage, 0, 1, 0)
 end
 
@@ -541,7 +588,7 @@ local function updateCrosshairSlider(input)
     local percentage = (inputX - minX) / CrosshairSliderFrame.AbsoluteSize.X
     Crosshair_Size = math.floor(3 + (percentage * 47))
     CrosshairSliderLabel.Text = "Размер прицела: " .. tostring(Crosshair_Size)
-    CrosshairSliderButton.Position = UDim2.new(percentage, -7, 0.5, -7)
+    CrosshairSliderButton.Position = UDim2.new(percentage, -6, 0.5, -6)
     CrosshairSliderFill.Size = UDim2.new(percentage, 0, 1, 0)
 end
 
