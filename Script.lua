@@ -6,7 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Настройки
+-- Настройки функций
 local ESP_Enabled = false
 local Aimbot_Enabled = false
 local Fly_Enabled = false
@@ -14,10 +14,17 @@ local Crosshair_Enabled = false
 local Aimbot_FOV = 150 
 local Crosshair_Size = 10 
 
--- Смена Цветов (Индексы: 1 = Бирюзовый/Красный, 2 = Зеленый, 3 = Фиолетовый, 4 = Радуга)
+-- Новые настройки тумблеров VISUAL (По умолчанию всё включено, если включен сам ESP/Aim)
+local Vis_Boxes = true
+local Vis_Lines = true
+local Vis_FOV = true
+local Vis_Names = true
+local Vis_Dist = true
+
+-- Смена Цветов (Индексы: 1 = Белый (Дефолт), 2 = Зеленый, 3 = Фиолетовый, 4 = Радуга)
 local CurrentColorIndex = 1
 local ColorModes = {"DEFAULT", "GREEN", "PURPLE", "RAINBOW"}
-local CurrentStaticColor = Color3.fromRGB(0, 255, 255) 
+local CurrentStaticColor = Color3.fromRGB(255, 255, 255) -- Дефолт теперь белый
 
 -- Хранилище для графики ESP
 local ESP_Cache = {}
@@ -114,8 +121,11 @@ RunService.Heartbeat:Connect(function()
         DynamicColor = Color3.fromHSV(tick() % 5 / 5, 1, 1)
     end
 
-    -- Визуализация FOV круга
-    if Aimbot_Enabled then
+    -- Ссылка на глобальную переменную для использования во 2 части (эффект текста кнопки)
+    _G.CurrentRainbowColor = DynamicColor
+
+    -- Визуализация FOV круга (с проверкой Vis_FOV)
+    if Aimbot_Enabled and Vis_FOV then
         FOVCircle.Radius = Aimbot_FOV
         FOVCircle.Position = screenCenter
         FOVCircle.Color = DynamicColor
@@ -143,7 +153,7 @@ RunService.Heartbeat:Connect(function()
         Crosshair_Vertical.Visible = false
     end
 
-    -- Обновление ESP (Ники, Дистанция, Боксы)
+    -- Обновление ESP (Ники, Дистанция, Боксы, Линии)
     for player, objs in pairs(ESP_Cache) do
         if ESP_Enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character.Humanoid.Health > 0 then
             local hrp = player.Character.HumanoidRootPart
@@ -154,24 +164,41 @@ RunService.Heartbeat:Connect(function()
                 local sizeX = 2300 / distance 
                 local sizeY = 3300 / distance
 
-                -- Настройка цвета элементов ESP
                 objs.Box.Color = DynamicColor
                 objs.Line.Color = DynamicColor
 
-                -- Бокс
-                objs.Box.Size = Vector2.new(sizeX, sizeY)
-                objs.Box.Position = Vector2.new(pos.X - sizeX / 2, pos.Y - sizeY / 2)
-                objs.Box.Visible = true
+                -- Условный показ Боксов
+                if Vis_Boxes then
+                    objs.Box.Size = Vector2.new(sizeX, sizeY)
+                    objs.Box.Position = Vector2.new(pos.X - sizeX / 2, pos.Y - sizeY / 2)
+                    objs.Box.Visible = true
+                else
+                    objs.Box.Visible = false
+                end
 
-                -- Трейсеры (Линии)
-                objs.Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                objs.Line.To = Vector2.new(pos.X, pos.Y + (sizeY / 2))
-                objs.Line.Visible = true
+                -- Условный показ Линий
+                if Vis_Lines then
+                    objs.Line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    objs.Line.To = Vector2.new(pos.X, pos.Y + (sizeY / 2))
+                    objs.Line.Visible = true
+                else
+                    objs.Line.Visible = false
+                end
 
-                -- Никнейм + Дистанция
-                objs.Text.Text = player.Name .. " [" .. tostring(distance) .. "m]"
-                objs.Text.Position = Vector2.new(pos.X, pos.Y - (sizeY / 2) - 18)
-                objs.Text.Visible = true
+                -- Условный конструкт текста (Ник и/или Дистанция)
+                if Vis_Names or Vis_Dist then
+                    local textString = ""
+                    if Vis_Names then textString = textString .. player.Name end
+                    if Vis_Dist then 
+                        if Vis_Names then textString = textString .. " " end
+                        textString = textString .. "[" .. tostring(distance) .. "m]"
+                    end
+                    objs.Text.Text = textString
+                    objs.Text.Position = Vector2.new(pos.X, pos.Y - (sizeY / 2) - 18)
+                    objs.Text.Visible = true
+                else
+                    objs.Text.Visible = false
+                end
             else
                 objs.Box.Visible = false
                 objs.Line.Visible = false
@@ -198,7 +225,7 @@ RunService.Heartbeat:Connect(function()
         end
     end
 end)
--- ЧАСТЬ 2: ИНТЕРФЕЙС GUI
+-- ЧАСТЬ 2: ИНТЕРФЕЙС GUI И НАСТРОЙКИ ОТОБРАЖЕНИЯ
 if CoreGui:FindFirstChild("DeltaESP_Gui") then
     CoreGui.DeltaESP_Gui:Destroy()
 end
@@ -210,8 +237,9 @@ ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 220, 0, 360) -- Высота увеличена под кнопку Color
-MainFrame.Position = UDim2.new(0.5, -110, 0.4, -180)
+-- Высота увеличена до 530, чтобы вместить новое отделение VISUAL под ползунками
+MainFrame.Size = UDim2.new(0, 220, 0, 530) 
+MainFrame.Position = UDim2.new(0.5, -110, 0.4, -265)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -323,7 +351,7 @@ ColorButton.Size = UDim2.new(0, 180, 0, 35)
 ColorButton.Position = UDim2.new(0.5, -90, 0, 150)
 ColorButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 ColorButton.Text = "COLOR: DEFAULT"
-ColorButton.TextColor3 = Color3.fromRGB(0, 255, 255)
+ColorButton.TextColor3 = Color3.fromRGB(255, 255, 255) -- По дефолту белый
 ColorButton.Font = Enum.Font.GothamBold
 ColorButton.TextSize = 13
 ColorButton.Parent = MainFrame
@@ -340,7 +368,7 @@ ColorButton.MouseButton1Click:Connect(function()
     ColorButton.Text = "COLOR: " .. mode
 
     if mode == "DEFAULT" then
-        CurrentStaticColor = Color3.fromRGB(0, 255, 255)
+        CurrentStaticColor = Color3.fromRGB(255, 255, 255)
         ColorButton.TextColor3 = CurrentStaticColor
     elseif mode == "GREEN" then
         CurrentStaticColor = Color3.fromRGB(50, 250, 50)
@@ -348,8 +376,13 @@ ColorButton.MouseButton1Click:Connect(function()
     elseif mode == "PURPLE" then
         CurrentStaticColor = Color3.fromRGB(180, 50, 255)
         ColorButton.TextColor3 = CurrentStaticColor
-    elseif mode == "RAINBOW" then
-        ColorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+end)
+
+-- Радужное переливание текста кнопки, если включен режим RAINBOW
+game:GetService("RunService").Heartbeat:Connect(function()
+    if ColorModes[CurrentColorIndex] == "RAINBOW" and _G.CurrentRainbowColor then
+        ColorButton.TextColor3 = _G.CurrentRainbowColor
     end
 end)
 
@@ -398,7 +431,7 @@ RoundCorner.Parent = SliderButton
 --- ПОЛЗУНОК ДЛЯ КРОССХЕИРА ---
 local CrosshairSliderLabel = Instance.new("TextLabel")
 CrosshairSliderLabel.Size = UDim2.new(0, 180, 0, 20)
-CrosshairSliderLabel.Position = UDim2.new(0.5, -90, 0, 250)
+CrosshairSliderLabel.Position = UDim2.new(0.5, -90, 0, 245)
 CrosshairSliderLabel.BackgroundTransparency = 1
 CrosshairSliderLabel.Text = "Размер прицела: " .. tostring(Crosshair_Size)
 CrosshairSliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -408,7 +441,7 @@ CrosshairSliderLabel.Parent = MainFrame
 
 local CrosshairSliderFrame = Instance.new("Frame")
 CrosshairSliderFrame.Size = UDim2.new(0, 180, 0, 8)
-CrosshairSliderFrame.Position = UDim2.new(0.5, -90, 0, 275)
+CrosshairSliderFrame.Position = UDim2.new(0.5, -90, 0, 270)
 CrosshairSliderFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 CrosshairSliderFrame.BorderSizePixel = 0
 CrosshairSliderFrame.Parent = MainFrame
@@ -436,6 +469,55 @@ CrosshairSliderButton.Parent = CrosshairSliderFrame
 local CRoundCorner = Instance.new("UICorner")
 CRoundCorner.CornerRadius = UDim.new(1, 0)
 CRoundCorner.Parent = CrosshairSliderButton
+
+--- ========================================== ---
+---             НОВОЕ ОТДЕЛЕНИЕ: VISUAL        ---
+--- ========================================== ---
+
+local VisualTitle = Instance.new("TextLabel")
+VisualTitle.Size = UDim2.new(0, 180, 0, 20)
+VisualTitle.Position = UDim2.new(0.5, -90, 0, 295)
+VisualTitle.BackgroundTransparency = 1
+VisualTitle.Text = "— VISUAL SETTINGS —"
+VisualTitle.TextColor3 = Color3.fromRGB(150, 150, 160)
+VisualTitle.Font = Enum.Font.GothamBold
+VisualTitle.TextSize = 11
+VisualTitle.Parent = MainFrame
+
+-- Функция для быстрой генерации маленьких кнопок переключения визуала
+local function CreateVisualToggle(name, textOn, textOff, yPos, startState, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 180, 0, 25)
+    btn.Position = UDim2.new(0.5, -90, 0, yPos)
+    btn.BackgroundColor3 = startState and Color3.fromRGB(55, 60, 75) or Color3.fromRGB(45, 45, 50)
+    btn.Text = startState and textOn or textOff
+    btn.TextColor3 = startState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(130, 130, 130)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.Parent = MainFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 5)
+    corner.Parent = btn
+
+    local state = startState
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = state and textOn or textOff
+        btn.BackgroundColor3 = state and Color3.fromRGB(55, 60, 75) or Color3.fromRGB(45, 45, 50)
+        btn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(130, 130, 130)
+        callback(state)
+    end)
+end
+
+-- Создаем кнопки настройки отображения элементов
+CreateVisualToggle("ToggleBoxes", "BOXES: VISIBLE", "BOXES: HIDDEN", 320, true, function(v) Vis_Boxes = v end)
+CreateVisualToggle("ToggleLines", "LINES: VISIBLE", "LINES: HIDDEN", 350, true, function(v) Vis_Lines = v end)
+CreateVisualToggle("ToggleFOV", "FOV CIRCLE: VISIBLE", "FOV CIRCLE: HIDDEN", 380, true, function(v) Vis_FOV = v end)
+CreateVisualToggle("ToggleNames", "NAMES: VISIBLE", "NAMES: HIDDEN", 410, true, function(v) Vis_Names = v end)
+CreateVisualToggle("ToggleDist", "DISTANCE: VISIBLE", "DISTANCE: HIDDEN", 440, true, function(v) Vis_Dist = v end)
+
+--- ========================================== ---
 
 -- Управление ползунками
 local draggingFOV = false
