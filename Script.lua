@@ -1,4 +1,4 @@
--- ЧАСТЬ 1: ОСНОВНАЯ ЛОГИКА, АИМБОТ И ВКЛАДКА MAIN (~240 СТРОК)
+-- ЧАСТЬ 1: ОСНОВНАЯ ЛОГИКА, АИМБОТ И ВКЛАДКА MAIN
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -19,7 +19,8 @@ local Jump_Enabled = false
 local JumpPower_Value = 50
 local Noclip_Enabled = false
 
--- Настройки тумблеров VISUAL
+-- Настройки тумблеров VISUAL (Плавность добавлена)
+_G.Aimbot_Smoothness = 0.4 -- Стандартное значение плавности
 local Aimbot_FOV = 150 
 local Crosshair_Size = 10 
 local Vis_Boxes = true
@@ -81,18 +82,25 @@ for _, p in pairs(Players:GetPlayers()) do CreateESP(p) end
 Players.PlayerAdded:Connect(CreateESP)
 Players.PlayerRemoving:Connect(RemoveESP)
 
+-- Улучшенный выбор цели (ищет абсолютно среди всех игроков на сервере)
 local function GetClosestPlayerToCenter()
     local closestPlayer = nil
     local shortestDistance = Aimbot_FOV
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local pos, onScreen = Camera:WorldToViewportPoint(player.Character.Head.Position)
-            if onScreen then
-                local distance = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
-                if distance < shortestDistance then
-                    closestPlayer = player
-                    shortestDistance = distance
+        if player ~= LocalPlayer and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+
+            if head and humanoid and humanoid.Health > 0 then
+                local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local distance = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+                    if distance < shortestDistance then
+                        closestPlayer = player
+                        shortestDistance = distance
+                    end
                 end
             end
         end
@@ -193,15 +201,13 @@ RunService.Heartbeat:Connect(function()
         else objs.Box.Visible = false objs.Line.Visible = false objs.Text.Visible = false end
     end
 
+    -- Улучшенный Аимбот с динамической плавностью
     if Aimbot_Enabled then
         local target = GetClosestPlayerToCenter()
         if target and target.Character and target.Character:FindFirstChild("Head") then
             local targetHead = target.Character.Head
-            if UserInputService:GetMouseDelta().Magnitude > 2 then
-                Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, targetHead.Position), 0.4)
-            else
-                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, targetHead.Position)
-            end
+            -- Плавное интерполирование (Lerp) камеры к цели
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.lookAt(Camera.CFrame.Position, targetHead.Position), _G.Aimbot_Smoothness)
         end
     end
 end)
@@ -377,14 +383,56 @@ end)
 RunService.Heartbeat:Connect(function()
     if ColorModes[CurrentColorIndex] == "RAINBOW" and _G.CurrentRainbowColor then ColorButton.TextColor3 = _G.CurrentRainbowColor end
 end)
--- ЧАСТЬ 2: НАСТРОЙКИ ВКЛАДОК VISUAL, PLAYER И ПОЛЗУНКИ (~240 СТРОК)
+
+-- НОВАЯ КНОПКА ПРИВАТНОГО СЕРВЕРА (ПОД COLOR, ТАКОГО ЖЕ РАЗМЕРА)
+local PrivateServerButton = Instance.new("TextButton")
+PrivateServerButton.Size = UDim2.new(0, 190, 0, 35) -- Такой же размер, как у ColorButton
+PrivateServerButton.Position = UDim2.new(0.5, -95, 0, 155) -- Сразу под кнопкой COLOR (110 + 35 + отступ 10)
+PrivateServerButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+PrivateServerButton.Text = "🌐 СОЗДАТЬ ПРИВАТ"
+PrivateServerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+PrivateServerButton.Font = Enum.Font.GothamBold
+PrivateServerButton.TextSize = 12
+PrivateServerButton.Parent = _G.MainContentFrame
+Instance.new("UICorner", PrivateServerButton).CornerRadius = UDim.new(0, 8)
+
+PrivateServerButton.MouseButton1Click:Connect(function()
+    local TeleportService = game:GetService("TeleportService")
+    local Players = game:GetService("Players")
+    local PlaceId = game.PlaceId
+    
+    -- Создаем приватный сервер
+    local serverCode = TeleportService:ReserveServer(PlaceId)
+    
+    if serverCode then
+        -- Копируем код в буфер обмена
+        setclipboard(serverCode)
+        
+        -- Телепортируем на сервер
+        TeleportService:TeleportToPrivateServer(PlaceId, serverCode, Players.LocalPlayer)
+        
+        -- Уведомление (можно заменить на вашу систему)
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Приватный сервер",
+            Text = "Код скопирован в буфер обмена!",
+            Duration = 5
+        })
+    else
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Ошибка",
+            Text = "Не удалось создать сервер",
+            Duration = 5
+        })
+    end
+end)-- ЧАСТЬ 2: НАСТРОЙКИ ВКЛАДОК VISUAL, PLAYER И ПОЛЗУНКИ
 local UserInputService = game:GetService("UserInputService")
 local MainFrame = _G.RomanMainFrame
 
 local VisualScroll = Instance.new("ScrollingFrame")
 VisualScroll.Size = UDim2.new(1, 0, 1, 0)
 VisualScroll.BackgroundTransparency = 1
-VisualScroll.CanvasSize = UDim2.new(0, 0, 0, 290)
+-- Увеличил CanvasSize, чтобы новый ползунок влезал без багов обрезания интерфейса
+VisualScroll.CanvasSize = UDim2.new(0, 0, 0, 350) 
 VisualScroll.ScrollBarThickness = 3
 VisualScroll.Parent = _G.VisualContentFrame
 
@@ -416,6 +464,7 @@ CreateVisualToggle("FOV CIRCLE: VISIBLE", "FOV CIRCLE: HIDDEN", 71, true, functi
 CreateVisualToggle("NAMES: VISIBLE", "NAMES: HIDDEN", 104, true, function(v) Vis_Names = v end)
 CreateVisualToggle("DISTANCE: VISIBLE", "DISTANCE: HIDDEN", 137, true, function(v) Vis_Dist = v end)
 
+-- Ползунок 1: FOV
 local SliderLabel = Instance.new("TextLabel")
 SliderLabel.Size = UDim2.new(0, 190, 0, 15)
 SliderLabel.Position = UDim2.new(0.5, -95, 0, 175)
@@ -445,6 +494,7 @@ SliderButton.Text = ""
 SliderButton.Parent = SliderFrame
 Instance.new("UICorner", SliderButton).CornerRadius = UDim.new(1,0)
 
+-- Ползунок 2: Размер прицела
 local CrosshairSliderLabel = Instance.new("TextLabel")
 CrosshairSliderLabel.Size = UDim2.new(0, 190, 0, 15)
 CrosshairSliderLabel.Position = UDim2.new(0.5, -95, 0, 215)
@@ -473,6 +523,36 @@ CrosshairSliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 CrosshairSliderButton.Text = ""
 CrosshairSliderButton.Parent = CrosshairSliderFrame
 Instance.new("UICorner", CrosshairSliderButton).CornerRadius = UDim.new(1,0)
+
+-- НОВЫЙ ПОЛЗУНОК: Плавность Аима (Smoothness)
+local SmoothSliderLabel = Instance.new("TextLabel")
+SmoothSliderLabel.Size = UDim2.new(0, 190, 0, 15)
+SmoothSliderLabel.Position = UDim2.new(0.5, -95, 0, 255)
+SmoothSliderLabel.BackgroundTransparency = 1
+SmoothSliderLabel.Text = "Плавность Аима: " .. string.format("%.2f", _G.Aimbot_Smoothness)
+SmoothSliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+SmoothSliderLabel.Font = Enum.Font.GothamBold
+SmoothSliderLabel.TextSize = 10
+SmoothSliderLabel.Parent = VisualScroll
+
+local SmoothSliderFrame = Instance.new("Frame")
+SmoothSliderFrame.Size = UDim2.new(0, 190, 0, 6)
+SmoothSliderFrame.Position = UDim2.new(0.5, -95, 0, 275)
+SmoothSliderFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+SmoothSliderFrame.Parent = VisualScroll
+
+local SmoothSliderFill = Instance.new("Frame")
+SmoothSliderFill.Size = UDim2.new((_G.Aimbot_Smoothness - 0.05) / 0.95, 0, 1, 0)
+SmoothSliderFill.BackgroundColor3 = Color3.fromRGB(230, 230, 50)
+SmoothSliderFill.Parent = SmoothSliderFrame
+
+local SmoothSliderButton = Instance.new("TextButton")
+SmoothSliderButton.Size = UDim2.new(0, 12, 0, 12)
+SmoothSliderButton.Position = UDim2.new((_G.Aimbot_Smoothness - 0.05) / 0.95, -6, 0.5, -6)
+SmoothSliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SmoothSliderButton.Text = ""
+SmoothSliderButton.Parent = SmoothSliderFrame
+Instance.new("UICorner", SmoothSliderButton).CornerRadius = UDim.new(1,0)
 
 local PlayerScroll = Instance.new("ScrollingFrame")
 PlayerScroll.Size = UDim2.new(1, 0, 1, 0)
@@ -532,8 +612,7 @@ SpeedLabel.Position = UDim2.new(0.5, -95, 0, 110)
 SpeedLabel.BackgroundTransparency = 1
 SpeedLabel.Text = "Значение Скорости: " .. tostring(WalkSpeed_Value)
 SpeedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-SpeedLabel.Font = Enum.Font.GothamBold
-SpeedLabel.TextSize = 10
+SpeedLabel.Font = Enum.Font.GothamBoldSpeedLabel.TextSize = 10
 SpeedLabel.Parent = PlayerScroll
 
 local SpeedFrame = Instance.new("Frame")
@@ -586,7 +665,7 @@ local JumpFrame = Instance.new("Frame")
 JumpFrame.Size = UDim2.new(0, 190, 0, 6)
 JumpFrame.Position = UDim2.new(0.5, -95, 0, 200)
 JumpFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-JumpFrame.Parent = JumpScroll or PlayerScroll
+JumpFrame.Parent = PlayerScroll
 
 local JumpFill = Instance.new("Frame")
 JumpFill.Size = UDim2.new((JumpPower_Value - 50) / 300, 0, 1, 0)
@@ -607,11 +686,11 @@ JumpToggleBtn.MouseButton1Click:Connect(function()
     JumpToggleBtn.BackgroundColor3 = Jump_Enabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
 end)
 
-local draggingFOV, draggingCrosshair, draggingSpeed, draggingJump = false, false, false, false
+local draggingFOV, draggingCrosshair, draggingSpeed, draggingJump, draggingSmooth = false, false, false, false, false
 
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        draggingFOV = false draggingCrosshair = false draggingSpeed = false draggingJump = false
+        draggingFOV = false draggingCrosshair = false draggingSpeed = false draggingJump = false draggingSmooth = false
     end
 end)
 
@@ -619,6 +698,7 @@ SliderButton.InputBegan:Connect(function(input) if input.UserInputType == Enum.U
 CrosshairSliderButton.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingCrosshair = true end end)
 SpeedSliderBtn.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingSpeed = true end end)
 JumpSliderBtn.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingJump = true end end)
+SmoothSliderButton.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then draggingSmooth = true end end)
 
 UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
@@ -632,6 +712,12 @@ UserInputService.InputChanged:Connect(function(input)
             Crosshair_Size = math.floor(3 + (percentage * 47))
             CrosshairSliderLabel.Text = "Размер прицела: " .. tostring(Crosshair_Size)
             CrosshairSliderButton.Position = UDim2.new(percentage, -6, 0.5, -6) CrosshairSliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+        elseif draggingSmooth then
+            local percentage = math.clamp((input.Position.X - SmoothSliderFrame.AbsolutePosition.X) / SmoothSliderFrame.AbsoluteSize.X, 0, 1)
+            -- Плавность от 0.05 (очень плавно) до 1.00 (моментальный доводчик)
+            _G.Aimbot_Smoothness = 0.05 + (percentage * 0.95)
+            SmoothSliderLabel.Text = "Плавность Аима: " .. string.format("%.2f", _G.Aimbot_Smoothness)
+            SmoothSliderButton.Position = UDim2.new(percentage, -6, 0.5, -6) SmoothSliderFill.Size = UDim2.new(percentage, 0, 1, 0)
         elseif draggingSpeed then
             local percentage = math.clamp((input.Position.X - SpeedFrame.AbsolutePosition.X) / SpeedFrame.AbsoluteSize.X, 0, 1)
             WalkSpeed_Value = math.floor(16 + (percentage * 234))
