@@ -384,45 +384,65 @@ RunService.Heartbeat:Connect(function()
     if ColorModes[CurrentColorIndex] == "RAINBOW" and _G.CurrentRainbowColor then ColorButton.TextColor3 = _G.CurrentRainbowColor end
 end)
 
--- НОВАЯ КНОПКА ПРИВАТНОГО СЕРВЕРА (ПОД COLOR, ТАКОГО ЖЕ РАЗМЕРА)
-local PrivateServerButton = Instance.new("TextButton")
-PrivateServerButton.Size = UDim2.new(0, 190, 0, 35)
-PrivateServerButton.Position = UDim2.new(0.5, -95, 0, 155)
-PrivateServerButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-PrivateServerButton.Text = "🌐 СОЗДАТЬ ПРИВАТ"
-PrivateServerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-PrivateServerButton.Font = Enum.Font.GothamBold
-PrivateServerButton.TextSize = 12
-PrivateServerButton.Parent = _G.MainContentFrame
-Instance.new("UICorner", PrivateServerButton).CornerRadius = UDim.new(0, 8)
+-- НОВАЯ КНОПКА "НАЙТИ ПУСТОЙ СЕРВЕР" (ЗАМЕНЯЕТ СОЗДАНИЕ ПРИВАТНОГО)
+local FindEmptyServerButton = Instance.new("TextButton")
+FindEmptyServerButton.Size = UDim2.new(0, 190, 0, 35)
+FindEmptyServerButton.Position = UDim2.new(0.5, -95, 0, 155) -- Под кнопкой COLOR
+FindEmptyServerButton.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+FindEmptyServerButton.Text = "🌐 НАЙТИ ПУСТОЙ СЕРВЕР"
+FindEmptyServerButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FindEmptyServerButton.Font = Enum.Font.GothamBold
+FindEmptyServerButton.TextSize = 11
+FindEmptyServerButton.Parent = _G.MainContentFrame
+Instance.new("UICorner", FindEmptyServerButton).CornerRadius = UDim.new(0, 8)
 
-PrivateServerButton.MouseButton1Click:Connect(function()
+FindEmptyServerButton.MouseButton1Click:Connect(function()
+    local HttpService = game:GetService("HttpService")
     local TeleportService = game:GetService("TeleportService")
     local Players = game:GetService("Players")
     local PlaceId = game.PlaceId
+    local LocalPlayer = Players.LocalPlayer
 
-    local serverCode = TeleportService:ReserveServer(PlaceId)
+    -- Уведомление о начале поиска
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "🔍 Поиск сервера",
+        Text = "Сканируем список серверов...",
+        Duration = 5
+    })
 
-    if serverCode then
-        -- Безопасное копирование в буфер обмена
-        pcall(function() 
-            setclipboard(serverCode) 
-        end)
-
-        TeleportService:TeleportToPrivateServer(PlaceId, serverCode, Players.LocalPlayer)
-
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Приватный сервер",
-            Text = "Код скопирован в буфер обмена!",
-            Duration = 5
-        })
-    else
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Ошибка",
-            Text = "Не удалось создать сервер",
-            Duration = 5
-        })
-    end
+    -- Поиск пустого сервера через API Roblox
+    pcall(function()
+        local url = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local response = game:HttpGet(url)
+        local serverList = HttpService:JSONDecode(response)
+        
+        local foundServer = nil
+        local minPlayers = math.huge
+        
+        -- Ищем сервер с минимальным количеством игроков
+        for _, server in pairs(serverList.data) do
+            if server.playing < server.maxPlayers and server.playing < minPlayers and server.id ~= game.JobId then
+                minPlayers = server.playing
+                foundServer = server.id
+            end
+        end
+        
+        if foundServer then
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "✅ Сервер найден!",
+                Text = "Игроков: " .. minPlayers .. ". Телепортируем...",
+                Duration = 5
+            })
+            task.wait(1)
+            TeleportService:TeleportToPlaceInstance(PlaceId, foundServer, LocalPlayer)
+        else
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "❌ Сервер не найден",
+                Text = "Попробуйте позже или создайте новый",
+                Duration = 5
+            })
+        end
+    end)
 end)
 
 -- ============================================
